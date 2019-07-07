@@ -1,7 +1,8 @@
 from pykakasi import kakasi
 import json
 import pickle
-import os
+
+import os
 
 def cmd(mes,ls,ka):
     if mes == "del":
@@ -30,6 +31,11 @@ def cmd(mes,ls,ka):
         print("")
         name = input("名前:")
         return cmd(name,ls,ka)
+    elif mes == "getmax":
+        getMaxLen(ls)
+        print("")
+        name = input("名前:")
+        return cmd(name,ls,ka)        
     elif mes == "search":
         ka.setMode('H', 'H')
         conv = ka.getConverter()
@@ -59,8 +65,75 @@ def cmd(mes,ls,ka):
         print("")
         name = input("登録:")
         return cmd(name,ls,ka)
+    elif mes == "trans":
+        ka.setMode('H', 'H')
+        conv = ka.getConverter()
+        kasi = input("歌詞を入力: ")
+        while(True):
+            kasi = conv.do(kasi)
+            print("歌詞の読みが以下でない場合、誤っている場所をひらがなに直してください。")
+            print(kasi)
+            ans = input()
+            while(False == (ans == 'y' or ans == 'ｙ' or ans == "")):
+                kasi = conv.do(ans)
+                ans = input("この歌詞でよろしいですか？ :" + kasi)
+            kaeuta = trans(kasi, ls, ka)
+            nth = 0
+            for i in kaeuta:
+                print(kasi[nth:nth+i[0]]+" ", end = "")
+                nth += i[0]
+            print("")
+            resWord = ""
+            for i in kaeuta:
+                resWord += "{}({}) ".format(ls[i[1][1][0]][0][i[1][1][1]], "".join(ls[i[1][1][0]][0]))
+            print(resWord)
+            print("")
+            ka.setMode('H', 'H')
+            conv = ka.getConverter()
+            kasi = input("歌詞を入力: ")
+            if kasi == "return":
+                break
+        print("")
+        name = input("登録:")
+        return cmd(name,ls,ka)
     else:
         return mes
+
+def trans(kasi, ls, ka):
+    escape = ["ん", "ー"]
+    maxlen = getMaxLen(ls)
+    kaeuta = []
+    nth = 0
+    while(True):
+        evalLs = []
+        if nth >= len(kasi):
+            break
+        for i in range(1,maxlen):
+            wordls = []
+            ka.setMode('H', 'a')
+            conv = ka.getConverter()
+            try :
+                ch = kasi[nth+i]
+            except:
+                ch = "あ"
+            if len(kasi[nth+i:]) != 1 and escape.count(ch) == 0:
+                for j in kasi[nth:nth+i]:
+                    wordls.append(conv.do(j))
+                res = searchWord(wordls,ls)
+                if res:
+                    evalLs.append([i,res[0]])
+        evalLs.sort(key = lambda x: x[1][0], reverse=True)
+        kaeuta.append(evalLs[0])
+        nth += evalLs[0][0]
+    return kaeuta
+
+def getMaxLen(ls):
+    maxlen = 0
+    for i in ls:
+        for j in range(len(i[0])):
+            if maxlen < len(i[1][j]):
+                maxlen = len(i[1][j])
+    return maxlen
 
 def check(word,ls):
     wordch = "".join(word.split("１"))
@@ -71,18 +144,27 @@ def check(word,ls):
 
 def evalScore(word1,word2):
     score = 0
-    if len(word1) == len(word2):
-        score += 2
+    offset = 0
+    if len(word1) == len(word2) and len(word1) != 1:
+        score += len(word1)
     for i in range(len(word2)):
-        if word1[i] == word2[i]:
+        if word1[i+offset] == word2[i]:
             score += 10
-        elif word1[i][-1] == word2[i][-1]:
+        elif word1[i+offset][-1] == word2[i][-1]:
+            score += 5
+        elif word1[i+offset][:-1] == word2[i][:-1]:
             score += 3
-        elif word1[i][:-1] == word2[i][:-1]:
-            score += 2
         else:
-            score += -7
-    return score
+            try:
+                if len(word1[i+offset+1:]) >= len(word2[i:]) and len(word1) != 1 and i != 0 and offset < 2:
+                    scoreTmp = evalScore(word1[i+offset+1:i+offset+2],word2[i:i+1])
+                    if scoreTmp >= 0:
+                        offset += 1
+                        score -= 6
+                    score += scoreTmp
+            except:
+                score += -7
+    return round(score/len(word1),2)
 
 def maxScore(ls):
     maxS = 1
@@ -93,7 +175,6 @@ def maxScore(ls):
                 maxS = ls[i][1][j]
                 result.append([maxS,[i,j]])
     result.sort(key=lambda x :x[0],reverse=True)
-    #print(result)
     return result
 
 def searchWord(mes,ls):
@@ -108,19 +189,20 @@ def searchWord(mes,ls):
             else:
                 scoreLs[i][1].append(0)
     result = maxScore(scoreLs)
+    #print(result)
     return result
 
 def main():
     ls = []
-    print("command: (print/del/end)")
+    print("command: (trans/search/print/del/end)")
     print("")
     try:
         f = open("data.pickle",'rb')
         ls = pickle.load(f)
-        print("Data:")
-        for i in ls:
-            print(i)
-        print("")
+        #print("Data:")
+        #for i in ls:
+        #    print(i)
+        #print("")
         f.close()
     except:
         pass
@@ -162,10 +244,10 @@ def main():
             name = cmd(input("登録:"),ls,ka)
         pickle.dump(ls,file)
         f.close()
-        print("")
-        print("Saved Data")
-        for i in ls:
-            print(i)
+        #print("")
+        #print("Saved Data")
+        #for i in ls:
+        #    print(i)
     except:
         pickle.dump(ls,file)
         f.close()
