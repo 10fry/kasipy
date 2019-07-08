@@ -3,24 +3,76 @@ import json
 import pickle
 import os
 import re
+import copy
+
+def help():
+    print("command: help   (コマンド一覧を表示)")
+    print("       : trans  (文章を変換)")
+    print("       : search (単語を変換)")
+    print("       : reset  (一度使った単語を使わない機能をリセット)")
+    print("       : dic    (辞書に単語を追加)")
+    print("       : print  (辞書を表示)")
+    print("       : del    (辞書の単語を削除)")
+    print("       : end    (プログラムを終了)")
+    print("")
 
 def cmd(mes,ls,ka):
-    if mes == "del":
-        delName = input("デリートネーム：")
-        delItem = [i for i in ls if "".join(i[0]) == delName]
-        if len(delItem) > 0:
-            ls.remove(delItem[0])
-            print("deleted:" + delName)
-        else:
-            print("No data")
+    if mes == "dic":
+        print("return でコマンド入力画面に戻ります")
         print("")
-        name = input("登録:")
+        name = input("単語名:")
+        while(True):
+            if name == "return":
+                break
+            if check(name,ls) == True:
+                ka.setMode('H', 'H')
+                conv = ka.getConverter()
+                jName = (conv.do(name)).split("１")
+                ans = input("読み：{} ? (y/cancel/正しい読み) :".format(jName))
+                if False == (ans == 'y' or ans == 'ｙ' or ans == ""):
+                    jName = ans.split("１")
+                    if (ans != "cancel"):
+                        print(jName)
+                ka.setMode('H', 'a')
+                conv = ka.getConverter()
+                tmpls = []
+                for i in jName:
+                    tmp = []
+                    for j in i:
+                        tmp.append(conv.do(j))
+                    tmpls.append(tmp)
+                name = name.split("１")
+                if (ans != "cancel"):
+                    ls.append([name,tmpls])
+                    print("appended:",name,tmpls)
+                else:
+                    print("canceled")
+            else:
+                print("data exist.")
+            print("")
+            name = input("単語名:")
+        print("")
+        name = input("コマンド:")
+        return cmd(name,ls,ka)
+    elif mes == "del":
+        print("return でコマンド入力画面に戻ります")
+        print("")
+        delName = input("削除する単語：")
+        if delName != "return":
+            delItem = [i for i in ls if "".join(i[0]) == delName]
+            if len(delItem) > 0:
+                ls.remove(delItem[0])
+                print("deleted:" + delName)
+            else:
+                print("No such data")
+        print("")
+        name = input("コマンド:")
         return cmd(name,ls,ka)
     elif mes == "print":
         for i in ls:
             print(i)
         print("")
-        name = input("登録:")
+        name = input("コマンド:")
         return cmd(name,ls,ka)
     elif mes == "eval":
         ka.setMode('H', 'a')
@@ -34,13 +86,20 @@ def cmd(mes,ls,ka):
     elif mes == "getmax":
         getMaxLen(ls)
         print("")
-        name = input("名前:")
+        name = input("コマンド:")
         return cmd(name,ls,ka)        
     elif mes == "search":
+        print("return でコマンド入力画面に戻ります")
+        print("")
         ka.setMode('H', 'H')
         conv = ka.getConverter()
         word = conv.do(input("サーチワード: "))
         while(True):
+            if word == "return":
+                break
+            if ls == []:
+                print("辞書が空です")
+                break
             print(word)
             wordls = []
             ka.setMode('H', 'a')
@@ -59,56 +118,80 @@ def cmd(mes,ls,ka):
             ka.setMode('H', 'H')
             conv = ka.getConverter()
             word = input("サーチワード: ")
-            if word == "return":
-                break
             word = conv.do(word)
         print("")
-        name = input("登録:")
+        name = input("コマンド:")
         return cmd(name,ls,ka)
     elif mes == "trans":
+        print("return でコマンド入力画面に戻ります")
+        print("")
+        tempDic = copy.deepcopy(ls)
+        esc = ' |　|、|。|,|\.|\[|\]|「|」'
         ka.setMode('H', 'H')
         conv = ka.getConverter()
         kasi = input("歌詞を入力: ")
         while(True):
-            kasi = conv.do(kasi)
-            print("歌詞の読みが以下でない場合、誤っている場所をひらがなに直してください。")
-            print(kasi)
-            kasi = re.split(' |　|、|。|,|\.',kasi)
-            #print(kasi)
-            ans = input()
-            kasiLs = []
-            while(False == (ans == 'y' or ans == 'ｙ' or ans == "")):
-                kasi = conv.do(ans)
-                ans = input("この歌詞でよろしいですか？ :" + kasi)
-                kasi = re.split(' |　|、|。|,|.',kasi)
-            for i in kasi:
-                kaeuta = trans(i, ls, ka)
-                #print(kaeuta)
-                kasiLs.append(kaeuta)
-            #print(kasiLs)
-            nth = 0
-            kasi = "".join(kasi)
-            for j in kasiLs:
-                for i in j:
-                    print(kasi[nth:nth+i[0]]+" ", end = "")
-                    nth += i[0]
-            print("")
-            resWord = ""
-            for j in kasiLs:
-                for i in j:
-                    resWord += "{}({}) ".format(ls[i[1][1][0]][0][i[1][1][1]], "".join(ls[i[1][1][0]][0]))
-            print(resWord)
-            print("")
-            ka.setMode('H', 'H')
-            conv = ka.getConverter()
-            kasi = input("歌詞を入力: ")
             if kasi == "return":
                 break
+            if ls == []:
+                print("辞書が空です")
+                break
+            if len(kasi) <= 1:
+                print("類似ワードなし")
+                print("")
+            else:
+                kasi = conv.do(kasi)
+                print("歌詞の読みが以下でない場合、誤っている場所をひらがなに直してください。")
+                print(kasi)
+                kasi = re.split(esc,kasi)
+                #print(kasi)
+                ans = input()
+                kasiLs = []
+                while(False == (ans == 'y' or ans == 'ｙ' or ans == "")):
+                    kasi = conv.do(ans)
+                    ans = input("この歌詞でよろしいですか？ :" + kasi)
+                    kasi = re.split(esc,kasi)
+                for i in kasi:
+                    kaeuta, tempDic = trans(i, tempDic, ka)
+                    #print(kaeuta)
+                    kasiLs.append(kaeuta)
+                #print(kasiLs)
+                nth = 0
+                kasi = "".join(kasi)
+                for j in kasiLs:
+                    for i in j:
+                        print(kasi[nth:nth+i[0]]+" ", end = "")
+                        nth += i[0]
+                print("")
+                resWord = ""
+                for j in kasiLs:
+                    for i in j:
+                        resWord += "{}({}) ".format(ls[i[1][1][0]][0][i[1][1][1]], "".join(ls[i[1][1][0]][0]))
+                print(resWord)
+                print("")
+                ka.setMode('H', 'H')
+                conv = ka.getConverter()
+            kasi = input("歌詞を入力: ")
         print("")
-        name = input("登録:")
+        name = input("コマンド:")
         return cmd(name,ls,ka)
-    else:
+    elif mes == "reset":
+        tempDic = copy.deepcopy(ls)
+        print("")
+        name = input("コマンド:")
+        return cmd(name,ls,ka)
+    elif mes == "help":
+        print("")
+        help()
+        name = input("コマンド:")
+        return cmd(name,ls,ka)
+    elif mes == "end":
         return mes
+    else:
+        print("無効なコマンドです")
+        print("")
+        name = input("コマンド:")
+        return cmd(name,ls,ka)
 
 def trans(kasi, ls, ka):
     escape = ["ん", "ー", "　", " "]
@@ -135,8 +218,10 @@ def trans(kasi, ls, ka):
                     evalLs.append([i,res[0]])
         evalLs.sort(key = lambda x: x[1][0], reverse=True)
         kaeuta.append(evalLs[0])
+        ls[evalLs[0][1][1][0]][0][evalLs[0][1][1][1]] = "ｑ"
+        ls[evalLs[0][1][1][0]][1][evalLs[0][1][1][1]] = ["qq"]
         nth += evalLs[0][0]
-    return kaeuta
+    return kaeuta, ls
 
 def getMaxLen(ls):
     maxlen = 0
@@ -178,7 +263,7 @@ def evalScore(word1,word2):
     return round(score/len(word1),2)
 
 def maxScore(ls):
-    maxS = 1
+    maxS = 0
     result = []
     for i in range(len(ls)):
         for j in range(len(ls[i][0])):
@@ -205,8 +290,7 @@ def searchWord(mes,ls):
 
 def main():
     ls = []
-    print("command: (trans/search/print/del/end)")
-    print("")
+    help()
     try:
         f = open("data.pickle",'rb')
         ls = pickle.load(f)
@@ -217,54 +301,30 @@ def main():
         f.close()
     except:
         pass
-    try:
-        file = open("data.pickle",'wb')
-        ka = kakasi()
-        ka.setMode('J', 'H')
-        ka.setMode('K', 'H')
-        ka.setMode('H', 'H')
-        conv = ka.getConverter()
-        name = cmd(input("登録:"),ls,ka)
-        while(name != "end"):
-            if check(name,ls) == True:
-                ka.setMode('H', 'H')
-                conv = ka.getConverter()
-                jName = (conv.do(name)).split("１")
-                ans = input("読み：{} ? input:".format(jName))
-                if False == (ans == 'y' or ans == 'ｙ' or ans == ""):
-                    jName = ans.split("１")
-                    if (ans != "cancel"):
-                        print(jName)
-                ka.setMode('H', 'a')
-                conv = ka.getConverter()
-                tmpls = []
-                for i in jName:
-                    tmp = []
-                    for j in i:
-                        tmp.append(conv.do(j))
-                    tmpls.append(tmp)
-                name = name.split("１")
-                if (ans != "cancel"):
-                    ls.append([name,tmpls])
-                    print("appended:",name,tmpls)
-                else:
-                    print("canceled")
-            else:
-                print("data exist.")
-            print("")
-            name = cmd(input("登録:"),ls,ka)
-        pickle.dump(ls,file)
-        f.close()
-        #print("")
-        #print("Saved Data")
-        #for i in ls:
-        #    print(i)
-    except:
-        pickle.dump(ls,file)
-        f.close()
-        print("Error occured.")
-        #for i in ls:
-        #   print(i)
+#    try:
+    file = open("data.pickle",'wb')
+    ka = kakasi()
+    ka.setMode('J', 'H')
+    ka.setMode('K', 'H')
+    ka.setMode('H', 'H')
+    conv = ka.getConverter()
+    name = cmd(input("コマンド:"),ls,ka)
+    while(name != "end"):
+        print("")
+        name = cmd(input("コマンド:"),ls,ka)
+    print("プログラムを終了します")
+    pickle.dump(ls,file)
+    f.close()
+    #print("")
+    #print("Saved Data")
+    #for i in ls:
+    #    print(i)
+#    except:
+#        pickle.dump(ls,file)
+#        f.close()
+#        print("Error occured.")
+#        #for i in ls:
+#        #   print(i)
     
 
 if __name__ == '__main__':
