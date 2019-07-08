@@ -1,8 +1,8 @@
 from pykakasi import kakasi
 import json
 import pickle
-
 import os
+import re
 
 def cmd(mes,ls,ka):
     if mes == "del":
@@ -73,19 +73,30 @@ def cmd(mes,ls,ka):
             kasi = conv.do(kasi)
             print("歌詞の読みが以下でない場合、誤っている場所をひらがなに直してください。")
             print(kasi)
+            kasi = re.split(' |　|、|。|,|\.',kasi)
+            #print(kasi)
             ans = input()
+            kasiLs = []
             while(False == (ans == 'y' or ans == 'ｙ' or ans == "")):
                 kasi = conv.do(ans)
                 ans = input("この歌詞でよろしいですか？ :" + kasi)
-            kaeuta = trans(kasi, ls, ka)
+                kasi = re.split(' |　|、|。|,|.',kasi)
+            for i in kasi:
+                kaeuta = trans(i, ls, ka)
+                #print(kaeuta)
+                kasiLs.append(kaeuta)
+            #print(kasiLs)
             nth = 0
-            for i in kaeuta:
-                print(kasi[nth:nth+i[0]]+" ", end = "")
-                nth += i[0]
+            kasi = "".join(kasi)
+            for j in kasiLs:
+                for i in j:
+                    print(kasi[nth:nth+i[0]]+" ", end = "")
+                    nth += i[0]
             print("")
             resWord = ""
-            for i in kaeuta:
-                resWord += "{}({}) ".format(ls[i[1][1][0]][0][i[1][1][1]], "".join(ls[i[1][1][0]][0]))
+            for j in kasiLs:
+                for i in j:
+                    resWord += "{}({}) ".format(ls[i[1][1][0]][0][i[1][1][1]], "".join(ls[i[1][1][0]][0]))
             print(resWord)
             print("")
             ka.setMode('H', 'H')
@@ -100,7 +111,7 @@ def cmd(mes,ls,ka):
         return mes
 
 def trans(kasi, ls, ka):
-    escape = ["ん", "ー"]
+    escape = ["ん", "ー", "　", " "]
     maxlen = getMaxLen(ls)
     kaeuta = []
     nth = 0
