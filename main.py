@@ -72,6 +72,7 @@ def cmd(mes,ls,ka):
     elif mes == "print":
         for i in ls:
             print(i)
+        print("登録単語数: ",len(ls))
         print("")
         name = input("コマンド:")
         return cmd(name,ls,ka)
@@ -248,8 +249,6 @@ def evalScore(word1,word2):
     sorset = [["h","m","p","w"],["n","k","r"],["t","ts","ch","sh"],["t","ch","sh","s"],["g","d"],["h","b"]]
     score = 0
     offset = 0
-    if len(word1) == len(word2) and len(word1) != 1:
-        score += len(word1)/2
     for i in range(len(word2)):
         if word1[i+offset] == word2[i]:
             score += 10
@@ -266,11 +265,11 @@ def evalScore(word1,word2):
             elif word1[i+offset][:-1] == word2[i][:-1] and word2[i][:-1] != "":
                 score += 5
                 if i == len(word2)-1:
-                  score += -7
+                  score += -11
             elif flag:
                 score += 3
                 if i == len(word2)-1:
-                  score += -7
+                  score += -11
             else:
                 try:
                     if len(word1[i+offset+1:]) >= len(word2[i:]) and len(word1) != 1 and i != 0 and offset < 2:
@@ -281,6 +280,10 @@ def evalScore(word1,word2):
                         score += scoreTmp
                 except:
                     score += -7
+            if score <= -20:
+                return round(score/len(word1),2)
+    if len(word1) == len(word2) and len(word1) != 1:
+        score += len(word1)/3
     return round(score/len(word1),2)
 
 def maxScore(ls):
@@ -299,10 +302,8 @@ def searchWord(mes,ls):
     for i in range(len(ls)):
         scoreLs.append([ls[i][0],[]])
         for j in range(len(ls[i][0])):
-            score = 0
             if len(ls[i][1][j]) >= len(mes):
-                score += evalScore(ls[i][1][j],mes)
-                scoreLs[i][1].append(score)
+                scoreLs[i][1].append(evalScore(ls[i][1][j],mes))
             else:
                 scoreLs[i][1].append(0)
     result = maxScore(scoreLs)
