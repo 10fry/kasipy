@@ -4,6 +4,7 @@ import pickle
 import os
 import re
 import copy
+import shutil
 
 def help():
     print("command: help   (コマンド一覧を表示)")
@@ -124,6 +125,10 @@ def cmd(mes,ls,ka):
         return cmd(name,ls,ka)
     elif mes == "trans":
         print("return でコマンド入力画面に戻ります")
+        ans = input("変換した文章内の単語の重複を許しますか？(y/n) :")
+        flagTrans = True
+        if ans == "y":
+            flagTrans = False
         print("")
         tempDic = copy.deepcopy(ls)
         esc = ' |　|、|。|,|\.|\[|\]|「|」'
@@ -152,7 +157,7 @@ def cmd(mes,ls,ka):
                     ans = input("この歌詞でよろしいですか？ :" + kasi)
                     kasi = re.split(esc,kasi)
                 for i in kasi:
-                    kaeuta, tempDic = trans(i, tempDic, ka)
+                    kaeuta, tempDic = trans(i, tempDic, ka, flagTrans)
                     #print(kaeuta)
                     kasiLs.append(kaeuta)
                 #print(kasiLs)
@@ -193,7 +198,7 @@ def cmd(mes,ls,ka):
         name = input("コマンド:")
         return cmd(name,ls,ka)
 
-def trans(kasi, ls, ka):
+def trans(kasi, ls, ka, flagTrans):
     escape = ["ん", "ー", "　", " "]
     maxlen = getMaxLen(ls)
     kaeuta = []
@@ -218,8 +223,9 @@ def trans(kasi, ls, ka):
                     evalLs.append([i,res[0]])
         evalLs.sort(key = lambda x: x[1][0], reverse=True)
         kaeuta.append(evalLs[0])
-        ls[evalLs[0][1][1][0]][0][evalLs[0][1][1][1]] = "ｑ"
-        ls[evalLs[0][1][1][0]][1][evalLs[0][1][1][1]] = ["qq"]
+        if flagTrans:
+            ls[evalLs[0][1][1][0]][0][evalLs[0][1][1][1]] = "ｑ"
+            ls[evalLs[0][1][1][0]][1][evalLs[0][1][1][1]] = ["qq"]
         nth += evalLs[0][0]
     return kaeuta, ls
 
@@ -239,27 +245,42 @@ def check(word,ls):
     return True
 
 def evalScore(word1,word2):
+    sorset = [["h","m","p","w"],["n","k","r"],["t","ts","ch","sh"],["t","ch","sh","s"],["g","d"],["h","b"]]
     score = 0
     offset = 0
     if len(word1) == len(word2) and len(word1) != 1:
-        score += len(word1)
+        score += len(word1)/2
     for i in range(len(word2)):
         if word1[i+offset] == word2[i]:
             score += 10
-        elif word1[i+offset][-1] == word2[i][-1]:
-            score += 5
-        elif word1[i+offset][:-1] == word2[i][:-1]:
-            score += 3
         else:
-            try:
-                if len(word1[i+offset+1:]) >= len(word2[i:]) and len(word1) != 1 and i != 0 and offset < 2:
-                    scoreTmp = evalScore(word1[i+offset+1:i+offset+2],word2[i:i+1])
-                    if scoreTmp >= 0:
-                        offset += 1
-                        score -= 6
-                    score += scoreTmp
-            except:
-                score += -7
+            flag = False
+            for j in sorset:
+                if j.count(word1[i+offset][:-1]) == 1 and j.count(word2[i][:-1]) == 1:
+                    flag = True
+                    break
+            if word1[i+offset][-1] == word2[i][-1]:
+                score += 6
+                if flag:
+                    score += 3
+            elif word1[i+offset][:-1] == word2[i][:-1] and word2[i][:-1] != "":
+                score += 5
+                if i == len(word2)-1:
+                  score += -7
+            elif flag:
+                score += 3
+                if i == len(word2)-1:
+                  score += -7
+            else:
+                try:
+                    if len(word1[i+offset+1:]) >= len(word2[i:]) and len(word1) != 1 and i != 0 and offset < 2:
+                        scoreTmp = evalScore(word1[i+offset+1:i+offset+2],word2[i:i+1])
+                        if scoreTmp >= 0:
+                            offset += 1
+                            score -= 10
+                        score += scoreTmp
+                except:
+                    score += -7
     return round(score/len(word1),2)
 
 def maxScore(ls):
@@ -301,30 +322,32 @@ def main():
         f.close()
     except:
         pass
-#    try:
-    file = open("data.pickle",'wb')
-    ka = kakasi()
-    ka.setMode('J', 'H')
-    ka.setMode('K', 'H')
-    ka.setMode('H', 'H')
-    conv = ka.getConverter()
-    name = cmd(input("コマンド:"),ls,ka)
-    while(name != "end"):
-        print("")
+    try:
+        file = open("data.pickle",'wb')
+        ka = kakasi()
+        ka.setMode('J', 'H')
+        ka.setMode('K', 'H')
+        ka.setMode('H', 'H')
+        conv = ka.getConverter()
         name = cmd(input("コマンド:"),ls,ka)
-    print("プログラムを終了します")
-    pickle.dump(ls,file)
-    f.close()
-    #print("")
-    #print("Saved Data")
-    #for i in ls:
-    #    print(i)
-#    except:
-#        pickle.dump(ls,file)
-#        f.close()
-#        print("Error occured.")
-#        #for i in ls:
-#        #   print(i)
+        while(name != "end"):
+            print("")
+            name = cmd(input("コマンド:"),ls,ka)
+        print("プログラムを終了します")
+        pickle.dump(ls,file)
+        f.close()
+        shutil.copyfile("data.pickle","data.pickle.backup")
+        #print("")
+        #print("Saved Data")
+        #for i in ls:
+        #    print(i)
+    except:
+        pickle.dump(ls,file)
+        f.close()
+        shutil.copyfile("data.pickle","data.pickle.backup")
+        print("Error occured.")
+        #for i in ls:
+        #   print(i)
     
 
 if __name__ == '__main__':
